@@ -8,15 +8,24 @@ cap.set(3, 350)  # Width
 cap.set(4, 305)  # Height
 
 # Read the background image
-imgBackground = cv2.imread("Resources/Background.png")
+imgBackgroundPath = "Resources/Background.png"
+if not os.path.exists(imgBackgroundPath):
+    raise FileNotFoundError(f"Background image not found: {imgBackgroundPath}")
+
+imgBackground = cv2.imread(imgBackgroundPath)
+imgBackground = cv2.resize(imgBackground, (1280, 720))  # Resize background to cover the entire window
 
 # Importing all the mode images to a list
 folderPathModes = "Resources/Modes"
+if not os.path.exists(folderPathModes):
+    raise FileNotFoundError(f"Modes folder not found: {folderPathModes}")
 listImgModesPath = os.listdir(folderPathModes)
 listImgModes = [cv2.imread(os.path.join(folderPathModes, imgModePath)) for imgModePath in listImgModesPath]
 
 # Importing all the icons to a list
 folderPathIcons = "Resources/Icons"
+if not os.path.exists(folderPathIcons):
+    raise FileNotFoundError(f"Icons folder not found: {folderPathIcons}")
 listImgIconsPath = os.listdir(folderPathIcons)
 listImgIcons = [cv2.imread(os.path.join(folderPathIcons, imgIconsPath)) for imgIconsPath in listImgIconsPath]
 
@@ -26,7 +35,14 @@ selection = -1
 counter = 0
 selectionSpeed = 7
 detector = HandDetector(detectionCon=0.8, maxHands=1)
-modePositions = [(1136, 196), (1000, 384), (1136, 581)]
+
+# Updated mode positions to align with icons for each mode
+modePositions = [
+    [(165, 668), (372, 668), (574, 668)],  # Positions for mode 0
+    [(165, 668), (372, 668), (574, 668)],  # Positions for mode 1 (adjust as needed)
+    [(165, 668), (372, 668), (574, 668)]   # Positions for mode 2 (adjust as needed)
+]
+
 counterPause = 0
 selectionList = [-1, -1, -1]
 
@@ -40,8 +56,11 @@ while True:
     # Resize the captured image to fit in the background
     img = cv2.resize(img, (350, 305))
 
+    # Create a copy of the background image to overlay elements
+    imgBackgroundCopy = imgBackground.copy()
+
     # Overlaying the webcam feed on the background image
-    imgBackground[98:98 + 305, 55:55 + 350] = img
+    imgBackgroundCopy[98:98 + 305, 55:55 + 350] = img
 
     # Ensure there is at least one mode image before attempting to display it
     if listImgModes:
@@ -53,10 +72,10 @@ while True:
         mode_img_resized = cv2.resize(listImgModes[modeType], (mode_img_area_width, mode_img_area_height))
 
         # Calculate the starting x-coordinate to place the mode image in the farthest right position
-        x_offset = imgBackground.shape[1] - mode_img_area_width
+        x_offset = imgBackgroundCopy.shape[1] - mode_img_area_width
 
         # Overlay the resized mode image onto the background at the specified position
-        imgBackground[282:282 + mode_img_area_height, x_offset:imgBackground.shape[1]] = mode_img_resized
+        imgBackgroundCopy[282:282 + mode_img_area_height, x_offset:imgBackgroundCopy.shape[1]] = mode_img_resized
 
     # Find the hand and its landmarks
     hands, img = detector.findHands(img)  # with draw
@@ -82,11 +101,13 @@ while True:
             selection = -1
             counter = 0
 
+        if selection > 0:
+            cv2.ellipse(imgBackgroundCopy, modePositions[modeType][selection - 1], (103, 103), 0, 0,
+                        counter * selectionSpeed, (0, 255, 0), 20)
+
         if counter > 0:
             counter += 1
             print(counter)
-            cv2.ellipse(imgBackground, modePositions[selection - 1], (103, 103), 0, 0,
-                        counter * selectionSpeed, (0, 255, 0), 20)
             if counter * selectionSpeed > 360:
                 selectionList[modeType] = selection
                 modeType += 1
@@ -102,14 +123,14 @@ while True:
 
     # Add selection icon at the bottom
     if selectionList[0] != -1:
-        imgBackground[636:636 + 65, 133:133 + 65] = listImgIcons[selectionList[0] - 1]
+        imgBackgroundCopy[636:636 + 65, 133:133 + 65] = listImgIcons[selectionList[0] - 1]
     if selectionList[1] != -1:
-        imgBackground[636:636 + 65, 340:340 + 65] = listImgIcons[2 + selectionList[1]]
+        imgBackgroundCopy[636:636 + 65, 340:340 + 65] = listImgIcons[2 + selectionList[1]]
     if selectionList[2] != -1:
-        imgBackground[636:636 + 65, 542:542 + 65] = listImgIcons[5 + selectionList[2]]
+        imgBackgroundCopy[636:636 + 65, 542:542 + 65] = listImgIcons[5 + selectionList[2]]
 
     # Displaying
-    cv2.imshow("Background", imgBackground)
+    cv2.imshow("Background", imgBackgroundCopy)
 
     # Break the loop if the 'l' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('l'):
@@ -118,3 +139,6 @@ while True:
 # Release the webcam and close all OpenCV windows
 cap.release()
 cv2.destroyAllWindows()
+
+
+
